@@ -4,6 +4,7 @@ import type { Store } from "../db/store.js";
 import { renderParent, renderSection } from "./render.js";
 import { logger } from "../log.js";
 import type { Memo } from "../types.js";
+import { answerFollowup } from "../agents/followup.js";
 
 const { App, LogLevel } = bolt;
 
@@ -42,12 +43,17 @@ export function startSlack(store: Store) {
     });
   });
 
-  app.event("message", async ({ event }) => {
+  app.event("message", async ({ event, client }) => {
     if (event.subtype || !("thread_ts" in event) || !event.thread_ts) return;
     const run = store.findByThread(event.thread_ts);
-    if (!run || run.status !== "completed") return;
-    // Follow-up Q&A handler installed in Task 12.
-    logger.info({ ts: event.thread_ts }, "follow-up received (handler stub)");
+    if (!run || run.status !== "completed" || !run.memoJson) return;
+    const text = "text" in event ? event.text ?? "" : "";
+    if (!text.trim()) return;
+    logger.info({ ts: event.thread_ts }, "follow-up received");
+    const answer = await answerFollowup({ question: text, memoJson: run.memoJson as Memo });
+    await client.chat.postMessage({
+      channel: run.slackChannel, thread_ts: event.thread_ts, text: answer,
+    });
   });
 
   startWorker(async (data: DealJobData, memo: Memo) => {
