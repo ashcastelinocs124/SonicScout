@@ -56,23 +56,38 @@ export function startSlack(store: Store) {
     });
   });
 
-  startWorker(async (data: DealJobData, memo: Memo) => {
-    store.completeRun(data.runId, {
-      recommendation: memo.recommendation, memoJson: memo,
-      ingestedContext: {}, thesisSnapshot: "",
-    });
-    await app.client.chat.update({
-      channel: data.slackChannel, ts: data.slackThreadTs,
-      text: `${memo.recommendation} — see thread for full memo`,
-      blocks: renderParent(memo),
-    });
-    for (const [k, name] of Object.entries(SECTION_NAMES)) {
-      const body = (memo.sections as Record<string, string>)[k] ?? "(no output)";
-      await app.client.chat.postMessage({
-        channel: data.slackChannel, thread_ts: data.slackThreadTs,
-        text: name, blocks: renderSection(name, body),
+  startWorker({
+    onProgress: async (data, phase, completed, total) => {
+      const label = phase === "ingestion" ? "Ingesting inputs"
+        : phase === "memo" ? "Synthesizing memo"
+        : `Agents: ${completed}/${total} (${phase} done)`;
+      try {
+        await app.client.chat.update({
+          channel: data.slackChannel, ts: data.slackThreadTs,
+          text: `🔍 ${label}…`,
+        });
+      } catch (err) {
+        logger.warn({ err, phase }, "progress update failed");
+      }
+    },
+    onComplete: async (data: DealJobData, memo: Memo) => {
+      store.completeRun(data.runId, {
+        recommendation: memo.recommendation, memoJson: memo,
+        ingestedContext: {}, thesisSnapshot: "",
       });
-    }
+      await app.client.chat.update({
+        channel: data.slackChannel, ts: data.slackThreadTs,
+        text: `${memo.recommendation} — see thread for full memo`,
+        blocks: renderParent(memo),
+      });
+      for (const [k, name] of Object.entries(SECTION_NAMES)) {
+        const body = (memo.sections as Record<string, string>)[k] ?? "(no output)";
+        await app.client.chat.postMessage({
+          channel: data.slackChannel, thread_ts: data.slackThreadTs,
+          text: name, blocks: renderSection(name, body),
+        });
+      }
+    },
   });
 
   return app;
