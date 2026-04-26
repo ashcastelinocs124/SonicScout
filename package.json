@@ -1,0 +1,44 @@
+{
+  "name": "sonicscout",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.91.1",
+    "@slack/bolt": "^4.7.1",
+    "better-sqlite3": "^12.9.0",
+    "bullmq": "^5.76.2",
+    "cheerio": "^1.2.0",
+    "dotenv": "^17.4.2",
+    "ioredis": "^5.10.1",
+    "pdf-parse": "^2.4.5",
+    "pino": "^10.3.1",
+    "undici": "^8.1.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^25.6.0",
+    "@types/pdf-parse": "^1.1.5",
+    "msw": "^2.13.6",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.5"
+  }
+}
