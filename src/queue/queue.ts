@@ -3,8 +3,9 @@ import { Redis as IORedis } from "ioredis";
 import { processJob } from "./worker.js";
 import { logger } from "../log.js";
 import type { IngestArgs } from "../agents/ingestion.js";
-import type { Memo } from "../types.js";
 import type { ProgressFn } from "../orchestrator/run.js";
+import { emit } from "../web/sse.js";
+import type { Store } from "../db/store.js";
 
 const connection = new IORedis(process.env.REDIS_URL ?? "redis://localhost:6379", {
   maxRetriesPerRequest: null,
@@ -17,19 +18,27 @@ export interface DealJobData {
   ingest: IngestArgs;
 }
 
-export interface WorkerCallbacks {
-  onProgress?: (data: DealJobData, phase: string, completed: number, total: number) => Promise<void>;
-  onComplete: (data: DealJobData, memo: Memo) => Promise<void>;
-}
-
-export function startWorker(cb: WorkerCallbacks) {
+export function startWorker(store: Store) {
   const worker = new Worker<DealJobData>("dealsense", async (job) => {
     const progress: ProgressFn = async (phase, completed, total) => {
-      if (cb.onProgress) await cb.onProgress(job.data, phase, completed, total);
+      emit(job.data.runId, "progress", { phase, done: completed, total });
     };
-    const memo = await processJob(job.data.ingest, progress);
-    await cb.onComplete(job.data, memo);
-    return memo;
+    try {
+      const memo = await processJob(job.data.ingest, progress);
+      store.completeRun(job.data.runId, {
+        recommendation: memo.recommendation,
+        memoJson: memo,
+        ingestedContext: {},
+        thesisSnapshot: "",
+      });
+      emit(job.data.runId, "complete", { memo });
+      return memo;
+    } catch (err: any) {
+      const message = err?.message ?? "unknown error";
+      store.failRun(job.data.runId, message);
+      emit(job.data.runId, "error", { message });
+      throw err;
+    }
   }, { connection, concurrency: 2 });
   worker.on("failed", (job, err) => logger.error({ jobId: job?.id, err }, "job failed"));
   return worker;
