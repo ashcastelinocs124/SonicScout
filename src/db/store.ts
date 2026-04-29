@@ -10,14 +10,12 @@ const SCHEMA = readFileSync(
 
 export interface RunRow {
   id: number;
-  slackChannel: string;
-  slackUser: string;
-  slackThreadTs: string | null;
   inputPayload: any;
-  status: string;
+  status: "pending" | "running" | "completed" | "failed";
   recommendation: string | null;
   memoJson: any | null;
   createdAt: number;
+  completedAt: number | null;
 }
 
 export class Store {
@@ -27,37 +25,43 @@ export class Store {
     this.db.exec(SCHEMA);
   }
 
-  createRun(a: { slackChannel: string; slackUser: string; slackThreadTs?: string; inputPayload: unknown }): number {
+  createRun(a: { inputPayload: unknown }): number {
     const stmt = this.db.prepare(
-      `INSERT INTO runs (slack_channel, slack_user, slack_thread_ts, input_payload, created_at)
-       VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO runs (input_payload, created_at) VALUES (?, ?)`,
     );
-    const r = stmt.run(a.slackChannel, a.slackUser, a.slackThreadTs ?? null, JSON.stringify(a.inputPayload), Date.now());
+    const r = stmt.run(JSON.stringify(a.inputPayload), Date.now());
     return Number(r.lastInsertRowid);
   }
 
-  completeRun(id: number, a: { recommendation: string; memoJson: unknown; ingestedContext: unknown; thesisSnapshot: string }) {
+  completeRun(
+    id: number,
+    a: { recommendation: string; memoJson: unknown; ingestedContext: unknown; thesisSnapshot: string },
+  ) {
     this.db.prepare(
       `UPDATE runs SET status='completed', recommendation=?, memo_json=?, ingested_context=?, thesis_snapshot=?, completed_at=? WHERE id=?`,
     ).run(a.recommendation, JSON.stringify(a.memoJson), JSON.stringify(a.ingestedContext), a.thesisSnapshot, Date.now(), id);
   }
 
-  find(id: number): RunRow | undefined {
-    return rowToRun(this.db.prepare(`SELECT * FROM runs WHERE id=?`).get(id) as any);
+  failRun(id: number, message: string) {
+    this.db.prepare(
+      `UPDATE runs SET status='failed', recommendation=?, completed_at=? WHERE id=?`,
+    ).run(`Error: ${message}`, Date.now(), id);
   }
 
-  findByThread(ts: string): RunRow | undefined {
-    return rowToRun(this.db.prepare(`SELECT * FROM runs WHERE slack_thread_ts=? ORDER BY id DESC LIMIT 1`).get(ts) as any);
+  find(id: number): RunRow | undefined {
+    return rowToRun(this.db.prepare(`SELECT * FROM runs WHERE id=?`).get(id) as any);
   }
 }
 
 function rowToRun(r: any): RunRow | undefined {
   if (!r) return undefined;
   return {
-    id: r.id, slackChannel: r.slack_channel, slackUser: r.slack_user, slackThreadTs: r.slack_thread_ts,
+    id: r.id,
     inputPayload: r.input_payload ? JSON.parse(r.input_payload) : null,
-    status: r.status, recommendation: r.recommendation,
+    status: r.status,
+    recommendation: r.recommendation,
     memoJson: r.memo_json ? JSON.parse(r.memo_json) : null,
     createdAt: r.created_at,
+    completedAt: r.completed_at,
   };
 }

@@ -14,8 +14,6 @@ export const dealQueue = new Queue("dealsense", { connection });
 
 export interface DealJobData {
   runId: number;
-  slackChannel: string;
-  slackThreadTs: string;
   ingest: IngestArgs;
 }
 
