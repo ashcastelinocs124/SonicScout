@@ -30,6 +30,12 @@
 - **Why it matters:** Most shadcn setup guides include `baseUrl` because TS <6 needed it. With TS 6+, paths resolve relative to the tsconfig dir by default — `baseUrl` is redundant and now warning-noisy.
 - **Fix/Pattern:** Just write `"paths": { "@/*": ["./src/*"] }` in `tsconfig.app.json` and `tsconfig.json`. No `baseUrl`. Path resolution still works because TS infers it from the tsconfig location.
 
+### 2026-04-29 — leaked OpenAI API key in chat → rotate immediately (recurrence)
+**Ref:** Git push policy (HARD RULE), Run locally
+- **What:** User pasted a live `sk-proj-...` OpenAI key directly into the conversation while trying to set up `.env`. Second secret exposure in this project (Slack bot token first on 2026-04-28).
+- **Why it matters:** Chat transcripts may be retained. OpenAI keys grant full inference access — at gpt-5 pricing, an exfiltrated key can rack up hundreds of dollars of spend per day before the user's usage limit kicks in. Pattern is now recurring across providers.
+- **Fix/Pattern:** When a user pastes ANY secret (token starting `sk-`, `xoxb-`, `xapp-`, `xoxp-`, JWT, AWS access keys, Github PAT, etc.), immediately: (1) refuse to write it to disk even if `.env` is gitignored, (2) instruct the user to rotate it at the provider's console, (3) provide a terminal-only command pattern (`echo 'KEY=...' > .env`) so the user sets the secret themselves without it touching the conversation. Never echo the secret back. Add a recurring entry rather than overwriting.
+
 ### 2026-04-28 — leaked Slack bot token in chat → rotate immediately
 **Ref:** Git push policy (HARD RULE), Slack app setup
 - **What:** A live `xoxb-...` token was pasted into the conversation. Even if `.env` is gitignored, anything in chat transcripts is considered exposed.
