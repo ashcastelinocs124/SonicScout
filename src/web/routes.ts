@@ -11,7 +11,12 @@ export function buildRoutes(store: Store): Router {
     const url = typeof req.body?.url === "string" ? req.body.url.trim() : "";
     if (!url) return res.status(400).json({ error: "url required" });
     const runId = store.createRun({ inputPayload: { url } });
-    await dealQueue.add("analyze", { runId, ingest: { websitePath: url } });
+    try {
+      await dealQueue.add("analyze", { runId, ingest: { websitePath: url } });
+    } catch (err: any) {
+      store.failRun(runId, `queue unavailable: ${err?.message ?? "unknown"}`);
+      return res.status(503).json({ error: "queue unavailable — is redis-server running?" });
+    }
     return res.status(202).json({ runId });
   });
 

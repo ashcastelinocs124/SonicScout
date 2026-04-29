@@ -53,12 +53,23 @@ export function useRunStream(runId: number): RunState {
         });
 
         es.addEventListener("error", (e: MessageEvent) => {
-          const message = (() => {
-            try { return JSON.parse((e as any).data ?? "{}").message ?? "stream error"; }
-            catch { return "stream error"; }
-          })();
-          setState({ status: "error", message });
-          es?.close();
+          const data = (e as any).data;
+          if (data) {
+            // Server-sent named error event with a payload — fatal, surface it.
+            const message = (() => {
+              try { return JSON.parse(data).message ?? "stream error"; }
+              catch { return "stream error"; }
+            })();
+            setState({ status: "error", message });
+            es?.close();
+            return;
+          }
+          // No data: this is a transport-level error (transient blip or fatal close).
+          // Only mark fatal when the browser has given up; otherwise let it auto-reconnect.
+          if (es && es.readyState === EventSource.CLOSED) {
+            setState({ status: "error", message: "stream closed" });
+          }
+          // CONNECTING (1) or OPEN (0) → browser will retry, do nothing.
         });
       } catch (err: any) {
         if (!cancelled) setState({ status: "error", message: err?.message ?? "load failed" });
