@@ -27,7 +27,7 @@ export async function runMemo(a: MemoArgs): Promise<MemoT> {
     "",
     "Output only the JSON object, no prose.",
   ].join("\n\n");
-  const raw = await callLLM({ system, user, model: "claude-opus-4-7", maxTokens: 3000, cacheSystem: true });
+  const raw = await callLLM({ system, user, model: "gpt-5", maxTokens: 3000 });
   const json = JSON.parse(extractJson(raw));
   return Memo.parse({ ...json, sections: a.sections });
 }

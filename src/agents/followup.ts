@@ -15,6 +15,6 @@ export async function answerFollowup(a: { question: string; memoJson: Memo }): P
   const sectionText = a.memoJson.sections[route] ?? "";
   const system = "You are answering a partner's follow-up using already-cached memo context. Be terse. Use confidence tiering.";
   const user = `Question: ${a.question}\n\nRelevant section (${route}):\n${sectionText}\n\nRecommendation context: ${a.memoJson.recommendation}.`;
-  const raw = await callLLM({ system, user, model: "claude-sonnet-4-6" });
+  const raw = await callLLM({ system, user, model: "gpt-5-mini" });
   return stripUnverified(raw);
 }

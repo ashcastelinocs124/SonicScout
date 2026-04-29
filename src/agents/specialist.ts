@@ -37,6 +37,6 @@ export async function runSpecialist(a: SpecialistArgs): Promise<string> {
     "",
     "## Your task", a.userTask,
   ].join("\n\n");
-  const raw = await callLLM({ system, user, model: "claude-sonnet-4-6", cacheSystem: true });
+  const raw = await callLLM({ system, user, model: "gpt-5-mini" });
   return stripUnverified(raw);
 }

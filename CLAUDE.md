@@ -11,7 +11,7 @@ Every factual claim is tagged `[verified]` / `[inferred]` / `[speculative]`; a p
 ## Tech stack
 
 - Node 20 + TypeScript strict (NodeNext, `noUncheckedIndexedAccess`)
-- `@slack/bolt` (Socket Mode), `@anthropic-ai/sdk`, `bullmq` + `ioredis`, `better-sqlite3`, `pdf-parse@2` (class-based PDFParse API), `cheerio`, `undici`, `zod`, `pino`
+- `@slack/bolt` (Socket Mode), `openai` (gpt-5-mini for specialists, gpt-5 for memo synthesis), `bullmq` + `ioredis`, `better-sqlite3`, `pdf-parse@2` (class-based PDFParse API), `cheerio`, `undici`, `zod`, `pino`
 - `vitest` (all LLM calls mocked in tests)
 
 ## Git push policy (HARD RULE)
@@ -41,5 +41,5 @@ At session start, read `short_term_memory.md` first, then `long_term_memory.md`.
 - Confidence tiering enforced via prompt + post-processor (`src/agents/tiering.ts`)
 - Static thesis encoded in `config/thesis.md`, sliced per-agent in `src/agents/thesis.ts`
 - BullMQ async pattern, SQLite persistence for follow-up Q&A routing, progressive Slack updates
-- Decisions: Slack-first wedge (not web app), Sonnet 4.6 for specialists / Opus 4.7 for synthesis, in-process worker (single binary), strict TS / no ESLint
+- Decisions: Slack-first wedge (not web app), gpt-5-mini for specialists / gpt-5 for synthesis (originally Sonnet 4.6 / Opus 4.7 — swapped to OpenAI on 2026-04-28), in-process worker (single binary), strict TS / no ESLint
 - All 31 tests pass, typecheck clean

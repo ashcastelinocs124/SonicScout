@@ -25,7 +25,7 @@ describe("specialist agents", () => {
     const args = llmMod.callLLM.mock.calls[0][0];
     expect(args.system).toContain("AI agents need crypto rails");
     expect(args.system).toContain("Market Map analyst");
-    expect(args.cacheSystem).toBe(true);
+    expect(args.model).toBe("gpt-5-mini");
   });
 
   it("runFounder uses founder thesis slice", async () => {

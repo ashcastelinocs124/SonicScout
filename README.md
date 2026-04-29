@@ -45,7 +45,7 @@ Requires Node 20+ and a Redis instance.
 
 ```bash
 cp .env.example .env
-# fill in SLACK_BOT_TOKEN, SLACK_SIGNING_SECRET, SLACK_APP_TOKEN, ANTHROPIC_API_KEY
+# fill in SLACK_BOT_TOKEN, SLACK_SIGNING_SECRET, SLACK_APP_TOKEN, OPENAI_API_KEY
 
 redis-server &
 npm install
