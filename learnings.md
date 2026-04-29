@@ -18,6 +18,18 @@
 - **Why it matters:** Silent footgun when migrating from `@anthropic-ai/sdk` (where the field is `max_tokens`) — looks like the same param renamed but it isn't supported on every OpenAI model.
 - **Fix/Pattern:** Use `max_completion_tokens` in `callLLM`. If you ever need to support older OpenAI models alongside gpt-5, branch on model name.
 
+### 2026-04-29 — shadcn CLI now generates Tailwind v4 CSS, not v3
+**Ref:** Tech stack > Frontend
+- **What:** Running `npx shadcn@latest init -t vite -b radix -p nova` writes `src/index.css` using `@import "shadcn/tailwind.css"` and `oklch()` colors with class names like `border-border`, `bg-background`. These are Tailwind v4-only — they don't compile under Tailwind v3 (`The 'border-border' class does not exist`).
+- **Why it matters:** Plans/blogs that say "shadcn requires Tailwind v3" are now stale. Pinning v3 + running the latest shadcn CLI gives you a broken build.
+- **Fix/Pattern:** For new shadcn projects, install `tailwindcss@^4` + `@tailwindcss/vite`, drop `postcss.config.js` and `tailwind.config.js`, register the plugin in `vite.config.ts` (`plugins: [react(), tailwindcss()]`), and use `@import "tailwindcss"` in CSS. Add a `@theme inline` block to map shadcn's `--background`/`--border`/etc. CSS vars to Tailwind's `--color-*` so utilities like `bg-background` resolve.
+
+### 2026-04-29 — TypeScript 6 deprecates `baseUrl` in tsconfig
+**Ref:** Tech stack > Frontend
+- **What:** Vite scaffold uses TS 6 (`typescript: ~6.0.2`). Adding `"baseUrl": "."` alongside `"paths": { "@/*": ["./src/*"] }` triggers `error TS5101: Option 'baseUrl' is deprecated and will stop functioning in TypeScript 7.0`.
+- **Why it matters:** Most shadcn setup guides include `baseUrl` because TS <6 needed it. With TS 6+, paths resolve relative to the tsconfig dir by default — `baseUrl` is redundant and now warning-noisy.
+- **Fix/Pattern:** Just write `"paths": { "@/*": ["./src/*"] }` in `tsconfig.app.json` and `tsconfig.json`. No `baseUrl`. Path resolution still works because TS infers it from the tsconfig location.
+
 ### 2026-04-28 — leaked Slack bot token in chat → rotate immediately
 **Ref:** Git push policy (HARD RULE), Slack app setup
 - **What:** A live `xoxb-...` token was pasted into the conversation. Even if `.env` is gitignored, anything in chat transcripts is considered exposed.

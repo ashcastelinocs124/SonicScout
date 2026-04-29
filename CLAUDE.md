@@ -1,18 +1,19 @@
 # sonicscout / DealSense
 
-Slack-first multi-agent venture analyst for **Decasonic** (Web3 x AI VC). Turns startup inputs (deck, site, founder profiles, tokenomics, whitepaper) into a thesis-aligned investment memo with `Pass / Watch / Take Meeting / Invest` recommendation.
+Localhost web app — multi-agent venture analyst for **Decasonic** (Web3 x AI VC). Turns startup inputs (deck, site, founder profiles, tokenomics, whitepaper) into a thesis-aligned investment memo with `Pass / Watch / Take Meeting / Invest` recommendation, optimized for live VC-pitch demos.
 
 ## Architecture (one-liner)
 
-`/dealsense <url>` → BullMQ → Orchestrator → Agent 1 (Ingestion) → Agents 2-6 in parallel (Market, Founder, Product, Tokenomics, Risk) → Agent 7 (Memo synthesis) → Slack thread + SQLite persistence.
+`POST /api/runs` → BullMQ → Orchestrator → Agent 1 (Ingestion) → Agents 2-6 in parallel (Market, Founder, Product, Tokenomics, Risk) → Agent 7 (Memo synthesis) → SSE stream → browser at `/runs/:id` + SQLite persistence.
 
-Every factual claim is tagged `[verified]` / `[inferred]` / `[speculative]`; a post-processor strips `[verified]` tags lacking a source line. The Decasonic thesis lives in `config/thesis.md` and is sliced per agent.
+Every factual claim is tagged `[verified]` / `[inferred]` / `[speculative]`; a post-processor strips `[verified]` tags lacking a source line. Inline confidence pills surface the discipline visually. The Decasonic thesis lives in `config/thesis.md` and is sliced per agent.
 
 ## Tech stack
 
 - Node 20 + TypeScript strict (NodeNext, `noUncheckedIndexedAccess`)
-- `@slack/bolt` (Socket Mode), `openai` (gpt-5-mini for specialists, gpt-5 for memo synthesis), `bullmq` + `ioredis`, `better-sqlite3`, `pdf-parse@2` (class-based PDFParse API), `cheerio`, `undici`, `zod`, `pino`
-- `vitest` (all LLM calls mocked in tests)
+- Backend: `express` (HTTP + SSE), `openai` (gpt-5-mini for specialists, gpt-5 for memo synthesis), `bullmq` + `ioredis`, `better-sqlite3`, `pdf-parse@2`, `cheerio`, `undici`, `zod`, `pino`
+- Frontend: Vite + React + TypeScript + Tailwind v4 + shadcn/ui + wouter (router)
+- `vitest` (all LLM calls mocked in tests), `supertest` for HTTP route tests
 
 ## Git push policy (HARD RULE)
 
@@ -43,3 +44,13 @@ At session start, read `short_term_memory.md` first, then `long_term_memory.md`.
 - BullMQ async pattern, SQLite persistence for follow-up Q&A routing, progressive Slack updates
 - Decisions: Slack-first wedge (not web app), gpt-5-mini for specialists / gpt-5 for synthesis (originally Sonnet 4.6 / Opus 4.7 — swapped to OpenAI on 2026-04-28), in-process worker (single binary), strict TS / no ESLint
 - All 31 tests pass, typecheck clean
+
+### 2026-04-29 — Web surface (replaces Slack)
+- Localhost web app for live VC-pitch demos per `docs/plans/2026-04-29-dealsense-web-implementation.md`
+- Express HTTP + SSE backend: `POST /api/runs`, `GET /api/runs/:id`, `GET .../stream`, `POST .../followup`
+- Vite + React + Tailwind v4 + shadcn frontend with 3 visual states (loading / progress / completed)
+- AgentProgress: 5 cards lighting up as agents complete in parallel (the hero moment)
+- Inline confidence pills (`[verified]` green, `[inferred]` yellow, `[speculative]` red)
+- Schema migration: dropped Slack-specific columns, persistence is now surface-agnostic
+- Decisions: SSE over WebSocket, in-process EventEmitter bus (no Redis pub/sub), wouter over react-router, Tailwind transitions over Framer Motion, Tailwind v4 (forced by shadcn output)
+- 39 backend tests pass, typecheck clean, prod build serves via single binary on `:3000`
