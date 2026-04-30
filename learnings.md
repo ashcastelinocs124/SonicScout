@@ -30,6 +30,12 @@
 - **Why it matters:** Most shadcn setup guides include `baseUrl` because TS <6 needed it. With TS 6+, paths resolve relative to the tsconfig dir by default — `baseUrl` is redundant and now warning-noisy.
 - **Fix/Pattern:** Just write `"paths": { "@/*": ["./src/*"] }` in `tsconfig.app.json` and `tsconfig.json`. No `baseUrl`. Path resolution still works because TS infers it from the tsconfig location.
 
+### 2026-04-30 — leaked Firecrawl API key in chat → rotate immediately (third recurrence)
+**Ref:** Git push policy (HARD RULE), Run locally
+- **What:** User pasted a live `fc-...` Firecrawl API key into the conversation while wiring up `.env` for founder discovery. Third secret exposure in this project (Slack 2026-04-28, OpenAI 2026-04-29, Firecrawl 2026-04-30). User opted to use the leaked key for the demo and rotate later.
+- **Why it matters:** Firecrawl keys grant scraping + LLM-extraction credits. Hobby tier ($16/mo, 3k credits) can be drained in hours by an exfiltrated key. The cross-provider pattern is now firmly established — every new third-party SDK introduces another leak surface.
+- **Fix/Pattern:** Same protocol as prior entries. Even when the user says "use it for now," (1) never echo the key back, (2) write only to gitignored `.env` via terminal redirection, never via a tool that surfaces the value, (3) log this entry, (4) at session end remind the user to rotate. Pre-emptively show the user the `echo 'KEY=...' >> .env` pattern when scaffolding any new third-party SDK so they never paste into chat.
+
 ### 2026-04-29 — leaked OpenAI API key in chat → rotate immediately (recurrence)
 **Ref:** Git push policy (HARD RULE), Run locally
 - **What:** User pasted a live `sk-proj-...` OpenAI key directly into the conversation while trying to set up `.env`. Second secret exposure in this project (Slack bot token first on 2026-04-28).
