@@ -1,5 +1,28 @@
 # Learnings
 
+### 2026-05-02 — discoverFounders was extracting from bare homepage; ~always empty
+**Ref:** Architecture > src/ingest/founders.ts
+- **What:** `discoverFounders` called `fc.extract({ urls: [companyUrl] })` — only the homepage, which rarely lists founders. Result: founder agent ran with `founderProfiles=[]` and produced all-`[speculative]` claims (e.g. Harvey.ai run #4). The original 2026-04-30 design *promised* to fan out across `/team`, `/about`, `/leadership` but that fan-out never shipped — silent quality regression masked by "completed" status.
+- **Why it matters:** Pipeline reported success while the founder section was useless. No alert because Firecrawl returned `success: true, data: { founders: [] }` (200 with empty array) which our code happily passes through.
+- **Fix/Pattern:** Two-stage picker (`src/ingest/teamPicker.ts`). Path A: cheerio anchor scrape → `gpt-5-mini` picks ≤3 URLs from real nav links. Path B fallback: `fc.map()` → same picker over URL paths. Picker constrained to URLs that appear in the candidate list (no hallucinated 404s). Net cost ~same (5 cr → 1 LLM call + 5 cr) with dramatically higher recall. When picker returns `[]` we skip Firecrawl `/extract` entirely (saves 5 credits per blind run). Pattern to remember: when an external API can return "success with empty payload," wrap it in our own coverage check.
+
+### 2026-05-02 — Vitest 4: top-level `const mockX = vi.fn()` referenced inside `vi.mock` factory throws ReferenceError
+**Ref:** Testing > tests/ingest/
+- **What:** Writing `const mockRequest = vi.fn(); vi.mock("undici", () => ({ request: mockRequest }))` throws `Cannot access 'mockRequest' before initialization` because `vi.mock` is hoisted above top-level `const` initializers. The existing `tests/ingest/founders.test.ts` happens to dodge it because its FirecrawlMock factory captures `mockExtract`/`mockScrape` *lazily* via `function FirecrawlMock() { return { extract: mockExtract, ... } }` — the references resolve when `new FirecrawlApp()` is called, after init.
+- **Why it matters:** Easy to repro, very confusing error, will recur on every new `vi.mock` whose factory eagerly references a `vi.fn()`.
+- **Fix/Pattern:** Use `vi.hoisted` for the mock fns:
+  ```ts
+  const { mockX, mockY } = vi.hoisted(() => ({ mockX: vi.fn(), mockY: vi.fn() }));
+  vi.mock("module", () => ({ thing: mockX }));
+  ```
+  This is the canonical Vitest 4 pattern. Apply to every new test file.
+
+### 2026-05-02 — Node 25 breaks vite/concurrently/native modules; corrupt node_modules choked Vite watcher
+**Ref:** Run locally
+- **What:** Running `npm run dev` on Node 25.5.0 produced cascading failures: `concurrently` crashed in rxjs ("Class extends value undefined"); Vite 8 threw `does not provide an export named 't'` from its own bundled logger; `tsx watch` hung silently because `htmlparser2/dist/esm/package.json` was an "Invalid package config." After downgrading to Node 22, a corrupt `node_modules` from the prior partial-install left ~hundreds of iCloud-style "name 2" duplicate dirs; `rm -rf` was hanging on them, and Vite's file watcher saw every deletion event and starved HTTP requests (frontend appeared frozen).
+- **Why it matters:** Three different failure modes from the same root cause (wrong Node version + dirty install). Each looked unrelated. The "frontend not loading" symptom was the most misleading — Vite was actually running, just busy logging file change events for ~10k files being deleted in the background.
+- **Fix/Pattern:** (1) Node version: this project targets Node 20–22. Use nvm: `nvm use 22` before any install. (2) Clean install pattern: `mv node_modules .nm-trash-$$ && rm -rf .nm-trash-$$ &` (atomic move + background delete) instead of foreground `rm -rf node_modules` — but **move the trash OUT of the project root** so file watchers don't see the deletes. (3) When Vite "appears to load forever," check `lsof -iTCP:5173 -sTCP:LISTEN` (proves it's bound) then `curl -m 3 http://127.0.0.1:5173/`; if the curl hangs but the port is bound, suspect file-watcher saturation. (4) `web/vite.config.ts` now has `server.watch.ignored: ["**/.nm-trash-*/**", ...]` to prevent recurrence.
+
 ### 2026-04-25 — pdf-parse v2 has a class-based API
 **Ref:** Architecture > src/ingest/pdf.ts
 - **What:** `pdf-parse@2.4.5` exports `{ PDFParse }` class, not a default function. v1 was `pdfParse(buf) -> {text}`; v2 is `new PDFParse({ data: buf }).getText() -> TextResult{ text, pages[] }`.
