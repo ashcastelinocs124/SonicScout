@@ -1,5 +1,11 @@
 # Learnings
 
+### 2026-05-02 — OpenAI Responses API: web_search_preview annotations are the only trustable citation source
+**Ref:** Architecture > src/ingest/competitors.ts
+- **What:** When asking gpt-5-mini to find competitors via the `web_search_preview` tool, the model frequently returns plausible-looking citation URLs that are NOT in the actual `response.output[*].content[*].annotations` (i.e., it hallucinates URLs that match its training-data shape but were never retrieved on this call).
+- **Why it matters:** A `[verified]` claim citing a fake URL is worse than no claim — it looks rigorous to the user but fails the project's grounding rule. The whole point of using web_search is that the model can only cite what it retrieved.
+- **Fix/Pattern:** Two-layer defense. (1) Prompt-level: explicitly say "you MUST cite a URL the tool actually returned — do NOT invent URLs." (2) Code-level: walk `response.output` for `url_citation` annotations, build `Set<host>`, filter the model's claimed `source` URLs to only those whose host appears in that set. Hostname comparison (not full URL) accommodates query-string and trailing-slash variance. Implementation: `src/agents/llm.ts:callLLMWithSearch` returns `{ text, citationHosts }` so callers can do this filter. Also drop self-citations (source host === company host).
+
 ### 2026-05-02 — discoverFounders was extracting from bare homepage; ~always empty
 **Ref:** Architecture > src/ingest/founders.ts
 - **What:** `discoverFounders` called `fc.extract({ urls: [companyUrl] })` — only the homepage, which rarely lists founders. Result: founder agent ran with `founderProfiles=[]` and produced all-`[speculative]` claims (e.g. Harvey.ai run #4). The original 2026-04-30 design *promised* to fan out across `/team`, `/about`, `/leadership` but that fan-out never shipped — silent quality regression masked by "completed" status.
