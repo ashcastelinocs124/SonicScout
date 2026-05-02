@@ -65,4 +65,34 @@ describe("pickTeamUrls (path A)", () => {
     expect(args.user).toContain("Our Team");
     expect(args.user).toContain("/team");
   });
+
+  it("filters out URLs the LLM invented that aren't in the candidate list", async () => {
+    mockRequest.mockResolvedValueOnce({
+      body: { text: async () => `<a href="/about">About</a>` },
+    });
+    mockCallLLM.mockResolvedValueOnce(
+      JSON.stringify({ urls: [
+        "https://example.com/about",
+        "https://example.com/team", // not in candidate list — should be dropped
+      ]})
+    );
+    const urls = await pickTeamUrls("https://example.com");
+    expect(urls).toEqual(["https://example.com/about"]);
+  });
+
+  it("treats invalid JSON as empty pick", async () => {
+    mockRequest.mockResolvedValueOnce({
+      body: { text: async () => `<a href="/team">Team</a>` },
+    });
+    mockCallLLM.mockResolvedValueOnce("sorry I'm not sure");
+    const urls = await pickTeamUrls("https://example.com");
+    expect(urls).toEqual([]);
+  });
+
+  it("returns [] when homepage fetch throws", async () => {
+    mockRequest.mockRejectedValueOnce(new Error("ECONNREFUSED"));
+    const urls = await pickTeamUrls("https://example.com");
+    expect(urls).toEqual([]);
+    expect(mockCallLLM).not.toHaveBeenCalled();
+  });
 });
