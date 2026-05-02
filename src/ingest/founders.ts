@@ -11,13 +11,15 @@ export interface DiscoveredFounder {
 
 const FoundersSchema = z.object({
   companyName: z.string().optional(),
-  founders: z.array(
-    z.object({
-      name: z.string(),
-      title: z.string().optional(),
-      linkedinUrl: z.string().url().optional(),
-    }),
-  ),
+  founders: z
+    .array(
+      z.object({
+        name: z.string(),
+        title: z.string().optional(),
+        linkedinUrl: z.string().url().optional(),
+      }),
+    )
+    .default([]),
 });
 
 const PROMPT =
