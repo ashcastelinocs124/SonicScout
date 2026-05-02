@@ -1,13 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { mockRequest, mockCallLLM } = vi.hoisted(() => ({
+const { mockRequest, mockCallLLM, mockMap, mockExtract, mockScrape } = vi.hoisted(() => ({
   mockRequest: vi.fn(),
   mockCallLLM: vi.fn(),
+  mockMap: vi.fn(),
+  mockExtract: vi.fn(),
+  mockScrape: vi.fn(),
 }));
 vi.mock("undici", () => ({ request: mockRequest }));
 vi.mock("../../src/agents/llm.js", () => ({ callLLM: mockCallLLM }));
+vi.mock("@mendable/firecrawl-js", () => {
+  function FirecrawlMock() {
+    return { map: mockMap, extract: mockExtract, scrape: mockScrape };
+  }
+  return { default: FirecrawlMock };
+});
 
 import { _extractAnchorsForTests, pickTeamUrls } from "../../src/ingest/teamPicker.js";
+import { _resetFirecrawlForTests } from "../../src/ingest/firecrawl.js";
 
 describe("anchor extraction", () => {
   it("returns deduped same-origin {label,url} pairs", async () => {
@@ -94,5 +104,59 @@ describe("pickTeamUrls (path A)", () => {
     const urls = await pickTeamUrls("https://example.com");
     expect(urls).toEqual([]);
     expect(mockCallLLM).not.toHaveBeenCalled();
+  });
+});
+
+describe("pickTeamUrls (path B fallback)", () => {
+  beforeEach(() => {
+    mockRequest.mockReset();
+    mockCallLLM.mockReset();
+    mockMap.mockReset();
+    _resetFirecrawlForTests();
+    process.env.FIRECRAWL_API_KEY = "fc-test";
+  });
+
+  it("falls back to fc.map when path A returns empty", async () => {
+    mockRequest.mockResolvedValueOnce({
+      body: { text: async () => `<a href="/careers">Careers</a>` },
+    });
+    mockCallLLM.mockResolvedValueOnce(JSON.stringify({ urls: [] })); // A picks nothing
+    mockMap.mockResolvedValueOnce({
+      links: [
+        { url: "https://example.com/careers" },
+        { url: "https://example.com/our-people" },
+        { url: "https://example.com/blog" },
+      ],
+    });
+    mockCallLLM.mockResolvedValueOnce(
+      JSON.stringify({ urls: ["https://example.com/our-people"] })
+    );
+    const urls = await pickTeamUrls("https://example.com");
+    expect(urls).toEqual(["https://example.com/our-people"]);
+    expect(mockMap).toHaveBeenCalledOnce();
+    expect(mockCallLLM).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns [] when both A and B come up empty", async () => {
+    mockRequest.mockResolvedValueOnce({
+      body: { text: async () => `<a href="/x">X</a>` },
+    });
+    mockCallLLM.mockResolvedValueOnce(JSON.stringify({ urls: [] }));
+    mockMap.mockResolvedValueOnce({ links: [{ url: "https://example.com/blog" }] });
+    mockCallLLM.mockResolvedValueOnce(JSON.stringify({ urls: [] }));
+    const urls = await pickTeamUrls("https://example.com");
+    expect(urls).toEqual([]);
+  });
+
+  it("skips path B when FIRECRAWL_API_KEY is unset", async () => {
+    delete process.env.FIRECRAWL_API_KEY;
+    _resetFirecrawlForTests();
+    mockRequest.mockResolvedValueOnce({
+      body: { text: async () => `<a href="/x">X</a>` },
+    });
+    mockCallLLM.mockResolvedValueOnce(JSON.stringify({ urls: [] }));
+    const urls = await pickTeamUrls("https://example.com");
+    expect(urls).toEqual([]);
+    expect(mockMap).not.toHaveBeenCalled();
   });
 });

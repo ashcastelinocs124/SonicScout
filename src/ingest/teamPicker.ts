@@ -1,6 +1,7 @@
 import { request } from "undici";
 import * as cheerio from "cheerio";
 import { callLLM } from "../agents/llm.js";
+import { getFirecrawl } from "./firecrawl.js";
 import { logger } from "../log.js";
 
 export interface Anchor { label: string; url: string }
@@ -74,5 +75,28 @@ export async function pickTeamUrls(companyUrl: string): Promise<string[]> {
     const picked = parsePickerOutput(raw).filter((u) => candidates.has(u)).slice(0, 3);
     if (picked.length > 0) return picked;
   }
-  return []; // path B added in Task 4
+
+  // Path B: Firecrawl /map fallback
+  const fc = getFirecrawl();
+  if (!fc) return [];
+  let mapLinks: string[] = [];
+  try {
+    const res = await fc.map(companyUrl);
+    mapLinks = (res?.links ?? [])
+      .map((l: { url: string }) => l.url)
+      .filter((u: unknown): u is string => typeof u === "string");
+  } catch (err) {
+    logger.warn({ err, companyUrl }, "teamPicker fc.map failed");
+    return [];
+  }
+  if (mapLinks.length === 0) return [];
+
+  const rawB = await callLLM({
+    system: PICKER_SYSTEM,
+    user: ["Candidate URLs (no labels available):", ...mapLinks].join("\n"),
+    model: "gpt-5-mini",
+    maxTokens: 500,
+  });
+  const mapSet = new Set(mapLinks);
+  return parsePickerOutput(rawB).filter((u) => mapSet.has(u)).slice(0, 3);
 }
