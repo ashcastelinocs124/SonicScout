@@ -14,7 +14,8 @@ export async function callLLM(args: LLMArgs, attempt = 0): Promise<string> {
   try {
     const res = await client.chat.completions.create({
       model: args.model,
-      max_completion_tokens: args.maxTokens ?? 2000,
+      max_completion_tokens: args.maxTokens ?? 8000,
+      reasoning_effort: "minimal",
       messages: [
         { role: "system", content: args.system },
         { role: "user", content: args.user },
@@ -22,7 +23,13 @@ export async function callLLM(args: LLMArgs, attempt = 0): Promise<string> {
     });
     const choice = res.choices[0];
     const content = choice?.message?.content;
-    if (!content) throw new Error("no content in response");
+    if (!content) {
+      const finish = choice?.finish_reason ?? "unknown";
+      const usage = res.usage;
+      throw new Error(
+        `no content in response (finish_reason=${finish}, completion_tokens=${usage?.completion_tokens}, reasoning_tokens=${(usage as any)?.completion_tokens_details?.reasoning_tokens})`,
+      );
+    }
     return content;
   } catch (err: any) {
     const status = err?.status;

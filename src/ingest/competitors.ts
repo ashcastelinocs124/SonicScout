@@ -60,8 +60,8 @@ export async function discoverCompetitors(
   let parsed;
   try {
     parsed = CompetitorsSchema.safeParse(JSON.parse(res.text.trim()));
-  } catch {
-    logger.warn({ companyUrl }, "competitor JSON parse failed");
+  } catch (err) {
+    logger.warn({ err, companyUrl }, "competitor JSON parse failed");
     return [];
   }
   if (!parsed.success) {
