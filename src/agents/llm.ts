@@ -65,6 +65,7 @@ export async function callLLMWithSearch(
     const res = await client.responses.create({
       model: args.model,
       tools: [{ type: "web_search_preview" }],
+      tool_choice: "required",
       input: [
         { role: "system", content: args.system },
         { role: "user", content: args.user },
