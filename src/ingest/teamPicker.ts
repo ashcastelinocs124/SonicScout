@@ -15,7 +15,11 @@ You may ONLY return URLs that appear verbatim in the provided list. Do not inven
 const SKIP_SCHEMES = /^(mailto:|tel:|javascript:|#)/i;
 const FILE_EXT = /\.(pdf|zip|png|jpg|jpeg|gif|svg|mp4|mp3|csv|xlsx?|docx?)$/i;
 
-export async function _extractAnchorsForTests(companyUrl: string): Promise<Anchor[]> {
+const MAX_ANCHORS = 50;
+const MAX_PICKS = 3;
+const PICKER_MAX_TOKENS = 500;
+
+export async function extractAnchors(companyUrl: string): Promise<Anchor[]> {
   const res = await request(companyUrl);
   const html = await res.body.text();
   const $ = cheerio.load(html);
@@ -37,7 +41,7 @@ export async function _extractAnchorsForTests(companyUrl: string): Promise<Ancho
     if (!label) return;
     out.push({ label, url: normalized });
   });
-  return out.slice(0, 50);
+  return out.slice(0, MAX_ANCHORS);
 }
 
 function buildPickerUser(anchors: Anchor[]): string {
@@ -60,7 +64,7 @@ function parsePickerOutput(raw: string): string[] {
 export async function pickTeamUrls(companyUrl: string): Promise<string[]> {
   let anchors: Anchor[] = [];
   try {
-    anchors = await _extractAnchorsForTests(companyUrl);
+    anchors = await extractAnchors(companyUrl);
   } catch (err) {
     logger.warn({ err, companyUrl }, "teamPicker anchor fetch failed");
   }
@@ -69,10 +73,10 @@ export async function pickTeamUrls(companyUrl: string): Promise<string[]> {
       system: PICKER_SYSTEM,
       user: buildPickerUser(anchors),
       model: "gpt-5-mini",
-      maxTokens: 500,
+      maxTokens: PICKER_MAX_TOKENS,
     });
     const candidates = new Set(anchors.map((a) => a.url));
-    const picked = parsePickerOutput(raw).filter((u) => candidates.has(u)).slice(0, 3);
+    const picked = parsePickerOutput(raw).filter((u) => candidates.has(u)).slice(0, MAX_PICKS);
     if (picked.length > 0) return picked;
   }
 
@@ -95,8 +99,8 @@ export async function pickTeamUrls(companyUrl: string): Promise<string[]> {
     system: PICKER_SYSTEM,
     user: ["Candidate URLs (no labels available):", ...mapLinks].join("\n"),
     model: "gpt-5-mini",
-    maxTokens: 500,
+    maxTokens: PICKER_MAX_TOKENS,
   });
   const mapSet = new Set(mapLinks);
-  return parsePickerOutput(rawB).filter((u) => mapSet.has(u)).slice(0, 3);
+  return parsePickerOutput(rawB).filter((u) => mapSet.has(u)).slice(0, MAX_PICKS);
 }

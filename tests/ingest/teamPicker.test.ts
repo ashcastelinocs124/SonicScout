@@ -1,22 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { mockRequest, mockCallLLM, mockMap, mockExtract, mockScrape } = vi.hoisted(() => ({
+const { mockRequest, mockCallLLM, mockMap } = vi.hoisted(() => ({
   mockRequest: vi.fn(),
   mockCallLLM: vi.fn(),
   mockMap: vi.fn(),
-  mockExtract: vi.fn(),
-  mockScrape: vi.fn(),
 }));
 vi.mock("undici", () => ({ request: mockRequest }));
 vi.mock("../../src/agents/llm.js", () => ({ callLLM: mockCallLLM }));
 vi.mock("@mendable/firecrawl-js", () => {
   function FirecrawlMock() {
-    return { map: mockMap, extract: mockExtract, scrape: mockScrape };
+    return { map: mockMap };
   }
   return { default: FirecrawlMock };
 });
 
-import { _extractAnchorsForTests, pickTeamUrls } from "../../src/ingest/teamPicker.js";
+import { extractAnchors, pickTeamUrls } from "../../src/ingest/teamPicker.js";
 import { _resetFirecrawlForTests } from "../../src/ingest/firecrawl.js";
 
 describe("anchor extraction", () => {
@@ -34,7 +32,7 @@ describe("anchor extraction", () => {
         </body></html>
       ` },
     });
-    const anchors = await _extractAnchorsForTests("https://example.com");
+    const anchors = await extractAnchors("https://example.com");
     expect(anchors).toEqual([
       { label: "Our Team", url: "https://example.com/team" },
       { label: "About",    url: "https://example.com/about" },
