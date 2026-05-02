@@ -12,6 +12,9 @@ vi.mock("@mendable/firecrawl-js", () => {
   return { default: FirecrawlMock };
 });
 
+const { mockPickTeamUrls } = vi.hoisted(() => ({ mockPickTeamUrls: vi.fn() }));
+vi.mock("../../src/ingest/teamPicker.js", () => ({ pickTeamUrls: mockPickTeamUrls }));
+
 import { discoverFounders, scrapeProfile } from "../../src/ingest/founders.js";
 
 describe("discoverFounders", () => {
@@ -19,10 +22,12 @@ describe("discoverFounders", () => {
     _resetFirecrawlForTests();
     mockExtract.mockReset();
     mockScrape.mockReset();
+    mockPickTeamUrls.mockReset();
     process.env.FIRECRAWL_API_KEY = "fc-test";
   });
 
   it("returns extracted founders with linkedin URLs", async () => {
+    mockPickTeamUrls.mockResolvedValueOnce(["https://harvey.ai/team"]);
     mockExtract.mockResolvedValueOnce({
       success: true,
       data: {
@@ -48,15 +53,39 @@ describe("discoverFounders", () => {
   });
 
   it("returns [] when extract throws", async () => {
+    mockPickTeamUrls.mockResolvedValueOnce(["https://harvey.ai/team"]);
     mockExtract.mockRejectedValueOnce(new Error("rate limited"));
     const result = await discoverFounders("https://harvey.ai");
     expect(result).toEqual([]);
   });
 
   it("returns [] when extract returns success: false", async () => {
+    mockPickTeamUrls.mockResolvedValueOnce(["https://harvey.ai/team"]);
     mockExtract.mockResolvedValueOnce({ success: false, error: "boom" });
     const result = await discoverFounders("https://harvey.ai");
     expect(result).toEqual([]);
+  });
+
+  it("calls Firecrawl extract with picker output, not bare companyUrl", async () => {
+    mockPickTeamUrls.mockResolvedValueOnce([
+      "https://harvey.ai/team",
+      "https://harvey.ai/leadership",
+    ]);
+    mockExtract.mockResolvedValueOnce({
+      success: true,
+      data: { founders: [{ name: "Winston Weinberg", title: "CEO" }] },
+    });
+    await discoverFounders("https://harvey.ai");
+    expect(mockExtract).toHaveBeenCalledWith(expect.objectContaining({
+      urls: ["https://harvey.ai/team", "https://harvey.ai/leadership"],
+    }));
+  });
+
+  it("returns [] without calling extract when picker returns []", async () => {
+    mockPickTeamUrls.mockResolvedValueOnce([]);
+    const result = await discoverFounders("https://harvey.ai");
+    expect(result).toEqual([]);
+    expect(mockExtract).not.toHaveBeenCalled();
   });
 });
 

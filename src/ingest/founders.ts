@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { getFirecrawl } from "./firecrawl.js";
+import { pickTeamUrls } from "./teamPicker.js";
 import { logger } from "../log.js";
 
 export interface DiscoveredFounder {
@@ -34,9 +35,17 @@ export async function discoverFounders(
     );
     return [];
   }
+  const teamUrls = await pickTeamUrls(companyUrl);
+  if (teamUrls.length === 0) {
+    logger.info(
+      { companyUrl },
+      "teamPicker found no team pages — skipping extract",
+    );
+    return [];
+  }
   try {
     const res = await fc.extract({
-      urls: [companyUrl],
+      urls: teamUrls,
       // SDK bundles its own zod@3 internally; our project uses zod@4. The two
       // ZodType nominal types are incompatible at the type level even though
       // the runtime behavior is identical, so we cast here.
