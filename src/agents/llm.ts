@@ -66,6 +66,7 @@ export async function callLLMWithSearch(
       model: args.model,
       tools: [{ type: "web_search_preview" }],
       tool_choice: "required",
+      include: ["web_search_call.action.sources"],
       input: [
         { role: "system", content: args.system },
         { role: "user", content: args.user },
@@ -73,16 +74,24 @@ export async function callLLMWithSearch(
     });
     const text = res.output_text ?? "";
     const hosts = new Set<string>();
+    const addHost = (u: string | null | undefined) => {
+      if (!u) return;
+      const h = safeHost(u);
+      if (h) hosts.add(h);
+    };
     for (const item of res.output ?? []) {
-      if (item.type !== "message") continue;
-      const content = (item as { content?: Array<{ type: string; annotations?: Array<{ type: string; url?: string }> }> }).content ?? [];
-      for (const c of content) {
-        if (c.type !== "output_text") continue;
-        for (const a of c.annotations ?? []) {
-          if (a.type !== "url_citation" || !a.url) continue;
-          const host = safeHost(a.url);
-          if (host) hosts.add(host);
+      if (item.type === "message") {
+        const content = (item as { content?: Array<{ type: string; annotations?: Array<{ type: string; url?: string }> }> }).content ?? [];
+        for (const c of content) {
+          if (c.type !== "output_text") continue;
+          for (const a of c.annotations ?? []) {
+            if (a.type === "url_citation") addHost(a.url);
+          }
         }
+      } else if (item.type === "web_search_call") {
+        const action = (item as { action?: { type?: string; url?: string | null; sources?: Array<{ url?: string }> } }).action ?? {};
+        addHost(action.url);
+        for (const s of action.sources ?? []) addHost(s.url);
       }
     }
     return { text, citationHosts: hosts };
