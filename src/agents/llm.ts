@@ -35,3 +35,57 @@ export async function callLLM(args: LLMArgs, attempt = 0): Promise<string> {
     throw err;
   }
 }
+
+export interface LLMSearchArgs {
+  system: string;
+  user: string;
+  model: "gpt-5-mini" | "gpt-5";
+}
+export interface LLMSearchResult {
+  text: string;
+  citationHosts: Set<string>;
+}
+
+function safeHost(u: string): string | null {
+  try { return new URL(u).host; } catch { return null; }
+}
+
+export async function callLLMWithSearch(
+  args: LLMSearchArgs,
+  attempt = 0,
+): Promise<LLMSearchResult> {
+  try {
+    const res = await client.responses.create({
+      model: args.model,
+      tools: [{ type: "web_search_preview" }],
+      input: [
+        { role: "system", content: args.system },
+        { role: "user", content: args.user },
+      ],
+    });
+    const text = res.output_text ?? "";
+    const hosts = new Set<string>();
+    for (const item of res.output ?? []) {
+      if (item.type !== "message") continue;
+      const content = (item as { content?: Array<{ type: string; annotations?: Array<{ type: string; url?: string }> }> }).content ?? [];
+      for (const c of content) {
+        if (c.type !== "output_text") continue;
+        for (const a of c.annotations ?? []) {
+          if (a.type !== "url_citation" || !a.url) continue;
+          const host = safeHost(a.url);
+          if (host) hosts.add(host);
+        }
+      }
+    }
+    return { text, citationHosts: hosts };
+  } catch (err: any) {
+    const status = err?.status;
+    if ((status === 429 || status >= 500) && attempt < 3) {
+      const ms = 500 * 2 ** attempt;
+      logger.warn({ status, attempt, ms }, "llm search retry");
+      await new Promise((r) => setTimeout(r, ms));
+      return callLLMWithSearch(args, attempt + 1);
+    }
+    throw err;
+  }
+}
