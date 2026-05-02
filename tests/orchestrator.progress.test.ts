@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import path from "node:path";
 
 vi.mock("../src/agents/llm.js", () => ({
+  callLLMWithSearch: vi.fn(async () => ({ text: "", citationHosts: new Set<string>() })),
   callLLM: vi.fn(async ({ user }: { user: string }) => {
     if (user.includes("Output only the JSON")) {
       return JSON.stringify({
