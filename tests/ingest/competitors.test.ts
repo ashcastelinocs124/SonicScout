@@ -26,7 +26,7 @@ describe("discoverCompetitors", () => {
     expect(out[0]!.name).toBe("BCG X");
     expect(out[2]!.url).toBeUndefined();
     const args = mockCallLLMWithSearch.mock.calls[0][0];
-    expect(args.model).toBe("gpt-5-mini");
+    expect(args.model).toBe("gpt-5.5");
     expect(args.user).toContain("https://forum3.com");
     expect(args.user).toContain("agentic strategy advisor");
   });

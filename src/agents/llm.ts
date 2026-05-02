@@ -6,7 +6,7 @@ const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 export interface LLMArgs {
   system: string;
   user: string;
-  model: "gpt-5-mini" | "gpt-5";
+  model: "gpt-5-mini" | "gpt-5" | "gpt-5.5";
   maxTokens?: number;
 }
 
@@ -46,7 +46,7 @@ export async function callLLM(args: LLMArgs, attempt = 0): Promise<string> {
 export interface LLMSearchArgs {
   system: string;
   user: string;
-  model: "gpt-5-mini" | "gpt-5";
+  model: "gpt-5-mini" | "gpt-5" | "gpt-5.5";
 }
 export interface LLMSearchResult {
   text: string;

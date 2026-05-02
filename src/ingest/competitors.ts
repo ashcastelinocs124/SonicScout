@@ -48,7 +48,7 @@ export async function discoverCompetitors(
   let res;
   try {
     res = await callLLMWithSearch({
-      model: "gpt-5-mini",
+      model: "gpt-5.5",
       system: COMPETITOR_SYSTEM,
       user: `Company URL: ${companyUrl}\n\nWebsite content:\n${websiteText.slice(0, WEBSITE_CONTEXT_CHARS)}`,
     });
