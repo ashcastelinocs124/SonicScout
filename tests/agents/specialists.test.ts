@@ -56,4 +56,30 @@ describe("specialist agents", () => {
     const args = llmMod.callLLM.mock.calls[0][0];
     expect(args.system).toContain("HARD FLAGS");
   });
+
+  it("includes competitors block in user prompt when present", async () => {
+    const thesis = await loadThesis();
+    const ctx = {
+      ...emptyCtx,
+      competitors: [
+        { name: "BCG X", positioning: "Big-3 consultancy AI practice", source: "https://www.bcg.com/x/about" },
+        { name: "Accenture Song", positioning: "CX consulting arm", source: "https://newsroom.accenture.com/news/2024/song" },
+      ],
+    };
+    await runMarket({ ctx, thesis });
+    const args = llmMod.callLLM.mock.calls[0][0];
+    expect(args.user).toContain("### Competitors (researched via web search)");
+    expect(args.user).toContain("[BCG X] — Big-3 consultancy AI practice");
+    expect(args.user).toContain("↳ Source: https://www.bcg.com/x/about");
+    expect(args.user).toContain("[Accenture Song] — CX consulting arm");
+    expect(args.user).toContain("↳ Source: https://newsroom.accenture.com/news/2024/song");
+  });
+
+  it("renders empty-state placeholder when competitors is empty", async () => {
+    const thesis = await loadThesis();
+    await runMarket({ ctx: emptyCtx, thesis });
+    const args = llmMod.callLLM.mock.calls[0][0];
+    expect(args.user).toContain("### Competitors (researched via web search)");
+    expect(args.user).toContain("(no competitor research available — use website copy and tag claims as [inferred])");
+  });
 });

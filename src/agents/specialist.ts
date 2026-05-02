@@ -28,12 +28,19 @@ export async function runSpecialist(a: SpecialistArgs): Promise<string> {
     thesisSlice,
     TIERING_RULES,
   ].join("\n\n");
+  const competitorsBlock = a.ctx.competitors.length > 0
+    ? a.ctx.competitors
+        .map((c) => `[${c.name}] — ${c.positioning}\n  ↳ Source: ${c.source}`)
+        .join("\n")
+    : "(no competitor research available — use website copy and tag claims as [inferred])";
+
   const user = [
     "## Startup context",
     "### Website", a.ctx.websiteText?.slice(0, 6000) ?? "(none)",
     "### Deck", a.ctx.deckText?.slice(0, 8000) ?? "(none)",
     "### Whitepaper", a.ctx.whitepaperText?.slice(0, 6000) ?? "(none)",
     "### Founder profiles", a.ctx.founderProfiles.map((p) => `[${p.url}]\n${p.text}`).join("\n\n"),
+    "### Competitors (researched via web search)", competitorsBlock,
     "",
     "## Your task", a.userTask,
   ].join("\n\n");
