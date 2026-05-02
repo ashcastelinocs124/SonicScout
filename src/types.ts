@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { Competitor } from "./ingest/competitors.js";
 
 export const Recommendation = z.enum(["Pass", "Watch", "Take Meeting", "Invest"]);
 export type Recommendation = z.infer<typeof Recommendation>;
@@ -26,5 +27,6 @@ export interface IngestedContext {
   whitepaperText?: string;
   websiteText?: string;
   founderProfiles: Array<{ url: string; text: string }>;
+  competitors: Competitor[];
   rawMetadata: Record<string, unknown>;
 }

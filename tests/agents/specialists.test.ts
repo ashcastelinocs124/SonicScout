@@ -12,7 +12,7 @@ const { runTokenomics } = await import("../../src/agents/tokenomics.js");
 const { runRisk } = await import("../../src/agents/risk.js");
 const { loadThesis } = await import("../../src/agents/thesis.js");
 
-const emptyCtx = { founderProfiles: [], rawMetadata: {} };
+const emptyCtx = { founderProfiles: [], competitors: [], rawMetadata: {} };
 
 describe("specialist agents", () => {
   beforeEach(() => llmMod.callLLM.mockClear());

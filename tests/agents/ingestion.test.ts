@@ -1,8 +1,21 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import path from "node:path";
-import { ingest } from "../../src/agents/ingestion.js";
+
+const { mockDiscoverCompetitors } = vi.hoisted(() => ({
+  mockDiscoverCompetitors: vi.fn(async () => []),
+}));
+vi.mock("../../src/ingest/competitors.js", () => ({
+  discoverCompetitors: mockDiscoverCompetitors,
+}));
+
+const { ingest } = await import("../../src/agents/ingestion.js");
 
 describe("ingestion", () => {
+  beforeEach(() => {
+    mockDiscoverCompetitors.mockReset();
+    mockDiscoverCompetitors.mockResolvedValue([]);
+  });
+
   it("extracts text from a local PDF and HTML file", async () => {
     const ctx = await ingest({
       deckPath: path.resolve("tests/fixtures/synapse-deck.pdf"),
@@ -18,5 +31,21 @@ describe("ingestion", () => {
     expect(ctx.deckText).toBeUndefined();
     expect(ctx.websiteText).toBeUndefined();
     expect(ctx.founderProfiles).toEqual([]);
+    expect(ctx.competitors).toEqual([]);
+  });
+
+  it("populates competitors when websiteText is present", async () => {
+    mockDiscoverCompetitors.mockResolvedValueOnce([
+      { name: "Rival Co", positioning: "competing offering", source: "https://example.com/rival" },
+    ]);
+    const ctx = await ingest({
+      websitePath: path.resolve("tests/fixtures/synapse-site.html"),
+    });
+    expect(ctx.competitors).toHaveLength(1);
+    expect(ctx.competitors[0]!.name).toBe("Rival Co");
+    expect(mockDiscoverCompetitors).toHaveBeenCalledTimes(1);
+    const [companyUrl, websiteText] = mockDiscoverCompetitors.mock.calls[0]!;
+    expect(companyUrl).toContain("synapse-site.html");
+    expect(websiteText).toContain("Synapse Protocol");
   });
 });
