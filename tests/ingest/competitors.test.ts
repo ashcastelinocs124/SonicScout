@@ -30,4 +30,64 @@ describe("discoverCompetitors", () => {
     expect(args.user).toContain("https://forum3.com");
     expect(args.user).toContain("agentic strategy advisor");
   });
+
+  it("filters out competitors whose source host wasn't actually retrieved", async () => {
+    mockCallLLMWithSearch.mockResolvedValueOnce({
+      text: JSON.stringify({
+        competitors: [
+          { name: "BCG X", positioning: "real", source: "https://www.bcg.com/x/about" },
+          { name: "Fake.io", positioning: "hallucinated", source: "https://fake.io/competes" },
+        ],
+      }),
+      citationHosts: new Set(["www.bcg.com"]),
+    });
+    const out = await discoverCompetitors("https://forum3.com", "blurb");
+    expect(out.map((c) => c.name)).toEqual(["BCG X"]);
+  });
+
+  it("drops competitors that cite the company's own site", async () => {
+    mockCallLLMWithSearch.mockResolvedValueOnce({
+      text: JSON.stringify({
+        competitors: [
+          { name: "Self-cited", positioning: "x", source: "https://forum3.com/about" },
+        ],
+      }),
+      citationHosts: new Set(["forum3.com"]),
+    });
+    const out = await discoverCompetitors("https://forum3.com", "blurb");
+    expect(out).toEqual([]);
+  });
+
+  it("returns [] on invalid JSON", async () => {
+    mockCallLLMWithSearch.mockResolvedValueOnce({
+      text: "I cannot help with that.", citationHosts: new Set(),
+    });
+    const out = await discoverCompetitors("https://forum3.com", "blurb");
+    expect(out).toEqual([]);
+  });
+
+  it("returns [] when search call throws", async () => {
+    mockCallLLMWithSearch.mockRejectedValueOnce(new Error("api down"));
+    const out = await discoverCompetitors("https://forum3.com", "blurb");
+    expect(out).toEqual([]);
+  });
+
+  it("returns [] without calling search when websiteText is empty", async () => {
+    const out = await discoverCompetitors("https://forum3.com", "");
+    expect(out).toEqual([]);
+    expect(mockCallLLMWithSearch).not.toHaveBeenCalled();
+  });
+
+  it("caps at 3 even if model returns more", async () => {
+    mockCallLLMWithSearch.mockResolvedValueOnce({
+      text: JSON.stringify({
+        competitors: Array.from({ length: 5 }, (_, i) => ({
+          name: `C${i}`, positioning: "x", source: `https://example.com/${i}`,
+        })),
+      }),
+      citationHosts: new Set(["example.com"]),
+    });
+    const out = await discoverCompetitors("https://forum3.com", "blurb");
+    expect(out).toHaveLength(3);
+  });
 });
