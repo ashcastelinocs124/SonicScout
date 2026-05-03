@@ -27,13 +27,31 @@ export async function runMemo(a: MemoArgs): Promise<MemoT> {
     "",
     "Output only the JSON object, no prose.",
   ].join("\n\n");
-  const raw = await callLLM({ system, user, model: "gpt-5", maxTokens: 3000 });
+  const raw = await callLLM({ system, user, model: "gpt-5", maxTokens: 12000 });
   const json = JSON.parse(extractJson(raw));
   return Memo.parse({ ...json, sections: a.sections });
 }
 
 function extractJson(s: string): string {
-  const m = s.match(/\{[\s\S]*\}/);
-  if (!m) throw new Error("memo did not return JSON");
-  return m[0];
+  const start = s.indexOf("{");
+  if (start === -1) throw new Error("memo did not return JSON");
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < s.length; i++) {
+    const c = s[i];
+    if (escape) { escape = false; continue; }
+    if (inString) {
+      if (c === "\\") escape = true;
+      else if (c === '"') inString = false;
+      continue;
+    }
+    if (c === '"') inString = true;
+    else if (c === "{") depth++;
+    else if (c === "}") {
+      depth--;
+      if (depth === 0) return s.slice(start, i + 1);
+    }
+  }
+  throw new Error("memo JSON did not close");
 }

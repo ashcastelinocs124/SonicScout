@@ -12,6 +12,9 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    watch: {
+      ignored: ["**/.nm-trash-*/**", "**/node_modules/**", "**/dist/**"],
+    },
     proxy: {
       "/api": { target: "http://localhost:3000", changeOrigin: true },
     },
