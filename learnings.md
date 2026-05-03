@@ -1,5 +1,17 @@
 # Learnings
 
+### 2026-05-03 — config files mutated by API at runtime: gitignore the active copy, ship a `.example`
+**Ref:** Architecture > config/thesis.md, Backend > src/web/routes.ts
+- **What:** The thesis-onboarding flow overwrites `config/thesis.md` from the API process whenever the user approves a new thesis. The file is git-tracked, so every onboarding shows up as `M config/thesis.md` in `git status` and risks being committed accidentally (would publish someone's private thesis configuration into the repo).
+- **Why it matters:** Same shape as the recurring secret-leak pattern but for non-secret config. The fix is a one-time gitignore + template setup, not a per-incident apology.
+- **Fix/Pattern:** When a user-mutable file lives at a stable path the code reads from: ship `<path>.example`, gitignore `<path>`. Boot path: if `<path>` is missing, copy from `<path>.example`. Apply this to `config/thesis.md` next session — the in-product onboarding is shipped, so the file is now de facto user state, not source. Same applies to the marker `data/.thesis-onboarded` (already in gitignored `data/` dir).
+
+### 2026-05-03 — `loadThesis()` is called once per run; reconfigure mid-analysis is safe
+**Ref:** Architecture > src/orchestrator/run.ts, src/agents/thesis.ts
+- **What:** `runOrchestrator` calls `loadThesis()` exactly once at the top via `Promise.all([ingest(args), loadThesis()])`. The thesis is then passed by value to every specialist. So clicking "Reconfigure thesis" mid-analysis (which deletes the marker and overwrites `config/thesis.md`) does NOT corrupt the in-flight run — it finishes against the snapshot it loaded.
+- **Why it matters:** Avoids an obvious-looking "race" worry that doesn't actually exist. New thesis applies to the *next* analysis, not the in-flight one. Behavior is correct by construction; just non-obvious.
+- **Fix/Pattern:** When designing user-mutable runtime state, prefer atomic per-run snapshots (load once at the top, pass by value through the pipeline) over re-reading inside hot paths. Saves you from caching invalidation problems and lets users confidently update config without "is my analysis going to break" anxiety.
+
 ### 2026-05-02 — OpenAI Responses API: web_search_preview annotations are the only trustable citation source
 **Ref:** Architecture > src/ingest/competitors.ts
 - **What:** When asking gpt-5-mini to find competitors via the `web_search_preview` tool, the model frequently returns plausible-looking citation URLs that are NOT in the actual `response.output[*].content[*].annotations` (i.e., it hallucinates URLs that match its training-data shape but were never retrieved on this call).
