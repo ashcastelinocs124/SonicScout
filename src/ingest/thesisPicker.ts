@@ -1,3 +1,6 @@
+// Intentionally parallel to teamPicker.ts. Keep extractAnchors, parsePickerOutput,
+// the SKIP_SCHEMES/FILE_EXT regexes, and the MAX_* constants in lockstep when
+// editing either file. At a 3rd caller, extract a shared helper.
 import { request } from "undici";
 import * as cheerio from "cheerio";
 import { callLLM } from "../agents/llm.js";

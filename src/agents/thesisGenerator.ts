@@ -55,21 +55,21 @@ async function fetchHomepageText(vcUrl: string): Promise<string> {
   }
 }
 
-async function fetchSubpages(urls: string[]): Promise<string[]> {
+async function fetchSubpages(urls: string[]): Promise<Array<{ url: string; markdown: string }>> {
   const fc = getFirecrawl();
   if (!fc) return [];
   const results = await Promise.all(
     urls.map(async (url) => {
       try {
         const doc = await fc.scrape(url, { formats: ["markdown"] });
-        return doc?.markdown ?? "";
+        return { url, markdown: doc?.markdown ?? "" };
       } catch (err) {
         logger.warn({ err, url }, "thesisGenerator scrape failed");
-        return "";
+        return { url, markdown: "" };
       }
     }),
   );
-  return results.filter((s) => s.length > 0);
+  return results.filter((r) => r.markdown.length > 0);
 }
 
 export async function generateThesis(vcUrl: string): Promise<DraftThesis> {
@@ -77,8 +77,11 @@ export async function generateThesis(vcUrl: string): Promise<DraftThesis> {
     fetchHomepageText(vcUrl),
     pickThesisUrls(vcUrl),
   ]);
-  const subpageMarkdown = await fetchSubpages(picked);
-  const vcContent = [homepageText, ...subpageMarkdown].join("\n\n").slice(0, MAX_VC_CONTENT_CHARS);
+  const subpages = await fetchSubpages(picked);
+  const sections: string[] = [];
+  if (homepageText) sections.push(`## Homepage (${vcUrl})\n${homepageText}`);
+  for (const s of subpages) sections.push(`## Subpage (${s.url})\n${s.markdown}`);
+  const vcContent = sections.join("\n\n").slice(0, MAX_VC_CONTENT_CHARS);
   if (!vcContent) {
     logger.warn({ vcUrl }, "thesisGenerator: no content to extract from");
     return EMPTY;
