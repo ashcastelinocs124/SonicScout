@@ -96,9 +96,10 @@ export function ThesisOnboarding({ onDone }: { onDone: () => void }) {
         <div className="mt-8 space-y-6">
           {SECTIONS.map((s) => (
             <div key={s.key}>
-              <label className="block text-sm font-semibold text-zinc-900">{s.label}</label>
+              <label htmlFor={`thesis-${s.key}`} className="block text-sm font-semibold text-zinc-900">{s.label}</label>
               <p className="text-xs text-zinc-500 mt-0.5">{s.hint}</p>
               <textarea
+                id={`thesis-${s.key}`}
                 value={draft[s.key]}
                 onChange={(e) => setDraft((d) => ({ ...d, [s.key]: e.target.value }))}
                 rows={5}

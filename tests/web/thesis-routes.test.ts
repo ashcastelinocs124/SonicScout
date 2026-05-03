@@ -29,7 +29,11 @@ describe("thesis routes", () => {
     process.env.DEALSENSE_THESIS_MARKER = markerFile;
     mockGenerateThesis.mockReset();
   });
-  afterEach(() => { rmSync(tmpRoot, { recursive: true, force: true }); });
+  afterEach(() => {
+    rmSync(tmpRoot, { recursive: true, force: true });
+    delete process.env.DEALSENSE_THESIS_PATH;
+    delete process.env.DEALSENSE_THESIS_MARKER;
+  });
 
   it("GET /api/thesis/status returns onboarded:false when marker missing", async () => {
     const res = await request(createServer(new Store(":memory:"))).get("/api/thesis/status");
