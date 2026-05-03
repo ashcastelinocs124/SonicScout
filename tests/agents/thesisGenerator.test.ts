@@ -51,4 +51,62 @@ describe("generateThesis", () => {
     expect(llmArgs.user).toContain("Decasonic invests");
     expect(llmArgs.user).toContain("We back agentic apps");
   });
+
+  it("falls through to homepage-only when picker returns []", async () => {
+    mockRequest.mockResolvedValueOnce({
+      body: { text: async () => "<html><body>Homepage text only.</body></html>" },
+    });
+    mockPickThesisUrls.mockResolvedValueOnce([]);
+    mockCallLLM.mockResolvedValueOnce(JSON.stringify({
+      marketBeliefs: "- a", founderFilters: "- b", tokenStance: "- c", antiPatterns: "- d",
+    }));
+    const out = await generateThesis("https://example.com");
+    expect(mockScrape).not.toHaveBeenCalled();
+    expect(out.marketBeliefs).toBe("- a");
+  });
+
+  it("skips Firecrawl when key is unset", async () => {
+    delete process.env.FIRECRAWL_API_KEY;
+    _resetFirecrawlForTests();
+    mockRequest.mockResolvedValueOnce({
+      body: { text: async () => "<html><body>Homepage.</body></html>" },
+    });
+    mockPickThesisUrls.mockResolvedValueOnce(["https://example.com/thesis"]);
+    mockCallLLM.mockResolvedValueOnce(JSON.stringify({
+      marketBeliefs: "- a", founderFilters: "- b", tokenStance: "- c", antiPatterns: "- d",
+    }));
+    const out = await generateThesis("https://example.com");
+    expect(mockScrape).not.toHaveBeenCalled();
+    expect(out.marketBeliefs).toBe("- a");
+  });
+
+  it("returns empty DraftThesis when LLM returns invalid JSON", async () => {
+    mockRequest.mockResolvedValueOnce({
+      body: { text: async () => "<html><body>Some text.</body></html>" },
+    });
+    mockPickThesisUrls.mockResolvedValueOnce([]);
+    mockCallLLM.mockResolvedValueOnce("sorry, I can't help with that");
+    const out = await generateThesis("https://example.com");
+    expect(out).toEqual({ marketBeliefs: "", founderFilters: "", tokenStance: "", antiPatterns: "" });
+  });
+
+  it("returns empty DraftThesis when LLM throws", async () => {
+    mockRequest.mockResolvedValueOnce({
+      body: { text: async () => "<html><body>Some text.</body></html>" },
+    });
+    mockPickThesisUrls.mockResolvedValueOnce([]);
+    mockCallLLM.mockRejectedValueOnce(new Error("api down"));
+    const out = await generateThesis("https://example.com");
+    expect(out).toEqual({ marketBeliefs: "", founderFilters: "", tokenStance: "", antiPatterns: "" });
+  });
+
+  it("returns empty DraftThesis when nothing was scraped (homepage fail + no Firecrawl)", async () => {
+    delete process.env.FIRECRAWL_API_KEY;
+    _resetFirecrawlForTests();
+    mockRequest.mockRejectedValueOnce(new Error("ECONNREFUSED"));
+    mockPickThesisUrls.mockResolvedValueOnce([]);
+    const out = await generateThesis("https://example.com");
+    expect(out).toEqual({ marketBeliefs: "", founderFilters: "", tokenStance: "", antiPatterns: "" });
+    expect(mockCallLLM).not.toHaveBeenCalled();
+  });
 });
