@@ -1,8 +1,42 @@
 import { Router } from "express";
+import { mkdirSync, existsSync, writeFileSync, unlinkSync } from "node:fs";
+import path from "node:path";
 import type { Store } from "../db/store.js";
 import { dealQueue } from "../queue/queue.js";
 import { subscribe } from "./sse.js";
 import { answerFollowup } from "../agents/followup.js";
+import { generateThesis, type DraftThesis } from "../agents/thesisGenerator.js";
+
+const DEFAULT_THESIS_PATH = path.resolve("config/thesis.md");
+const DEFAULT_MARKER_PATH = path.resolve("data/.thesis-onboarded");
+const thesisPath = () => process.env.DEALSENSE_THESIS_PATH ?? DEFAULT_THESIS_PATH;
+const markerPath = () => process.env.DEALSENSE_THESIS_MARKER ?? DEFAULT_MARKER_PATH;
+
+function isDraft(x: unknown): x is DraftThesis {
+  if (!x || typeof x !== "object") return false;
+  const o = x as Record<string, unknown>;
+  return typeof o.marketBeliefs === "string"
+      && typeof o.founderFilters === "string"
+      && typeof o.tokenStance === "string"
+      && typeof o.antiPatterns === "string";
+}
+
+function assembleThesisMarkdown(d: DraftThesis): string {
+  return [
+    "## Market beliefs",
+    d.marketBeliefs,
+    "",
+    "## Founder filters",
+    d.founderFilters,
+    "",
+    "## Token stance",
+    d.tokenStance,
+    "",
+    "## Anti-patterns (auto-flag, escalate in Trust & Risk)",
+    d.antiPatterns,
+    "",
+  ].join("\n");
+}
 
 export function buildRoutes(store: Store): Router {
   const r = Router();
@@ -73,6 +107,35 @@ export function buildRoutes(store: Store): Router {
     if (!question) return res.status(400).json({ error: "question required" });
     const answer = await answerFollowup({ question, memoJson: row.memoJson });
     return res.json({ answer });
+  });
+
+  r.get("/thesis/status", (_req, res) => {
+    res.json({ onboarded: existsSync(markerPath()) });
+  });
+
+  r.post("/thesis/draft", async (req, res) => {
+    const vcUrl = typeof req.body?.vcUrl === "string" ? req.body.vcUrl.trim() : "";
+    if (!vcUrl) return res.status(400).json({ error: "vcUrl required" });
+    const draft = await generateThesis(vcUrl);
+    return res.json(draft);
+  });
+
+  r.post("/thesis/save", (req, res) => {
+    const sections = req.body?.sections;
+    if (!isDraft(sections)) return res.status(400).json({ error: "sections must include all 4 fields" });
+    const tp = thesisPath();
+    const mp = markerPath();
+    mkdirSync(path.dirname(tp), { recursive: true });
+    mkdirSync(path.dirname(mp), { recursive: true });
+    writeFileSync(tp, assembleThesisMarkdown(sections), "utf8");
+    writeFileSync(mp, "", "utf8");
+    return res.json({ ok: true });
+  });
+
+  r.delete("/thesis/onboarded", (_req, res) => {
+    const mp = markerPath();
+    if (existsSync(mp)) unlinkSync(mp);
+    return res.json({ ok: true });
   });
 
   return r;
