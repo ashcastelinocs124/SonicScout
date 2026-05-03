@@ -27,12 +27,12 @@ describe("pickThesisUrls", () => {
       ` },
     });
     mockCallLLM.mockResolvedValueOnce(JSON.stringify({
-      urls: ["https://decasonic.com/thesis", "https://decasonic.com/about"],
+      urls: ["https://examplevc.com/thesis", "https://examplevc.com/about"],
     }));
-    const urls = await pickThesisUrls("https://decasonic.com");
+    const urls = await pickThesisUrls("https://examplevc.com");
     expect(urls).toEqual([
-      "https://decasonic.com/thesis",
-      "https://decasonic.com/about",
+      "https://examplevc.com/thesis",
+      "https://examplevc.com/about",
     ]);
     const args = mockCallLLM.mock.calls[0]![0];
     expect(args.model).toBe("gpt-5-mini");
@@ -45,10 +45,10 @@ describe("pickThesisUrls", () => {
       body: { text: async () => `<a href="/about">About</a>` },
     });
     mockCallLLM.mockResolvedValueOnce(JSON.stringify({
-      urls: ["https://decasonic.com/about", "https://decasonic.com/thesis"],
+      urls: ["https://examplevc.com/about", "https://examplevc.com/thesis"],
     }));
-    const urls = await pickThesisUrls("https://decasonic.com");
-    expect(urls).toEqual(["https://decasonic.com/about"]);
+    const urls = await pickThesisUrls("https://examplevc.com");
+    expect(urls).toEqual(["https://examplevc.com/about"]);
   });
 
   it("returns [] when LLM returns invalid JSON", async () => {
@@ -56,13 +56,13 @@ describe("pickThesisUrls", () => {
       body: { text: async () => `<a href="/about">About</a>` },
     });
     mockCallLLM.mockResolvedValueOnce("not json");
-    const urls = await pickThesisUrls("https://decasonic.com");
+    const urls = await pickThesisUrls("https://examplevc.com");
     expect(urls).toEqual([]);
   });
 
   it("returns [] when homepage fetch throws", async () => {
     mockRequest.mockRejectedValueOnce(new Error("ECONNREFUSED"));
-    const urls = await pickThesisUrls("https://decasonic.com");
+    const urls = await pickThesisUrls("https://examplevc.com");
     expect(urls).toEqual([]);
     expect(mockCallLLM).not.toHaveBeenCalled();
   });

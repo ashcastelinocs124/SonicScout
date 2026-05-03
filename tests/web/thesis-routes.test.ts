@@ -52,10 +52,10 @@ describe("thesis routes", () => {
       marketBeliefs: "- a", founderFilters: "- b", tokenStance: "- c", antiPatterns: "- d",
     });
     const res = await request(createServer(new Store(":memory:")))
-      .post("/api/thesis/draft").send({ vcUrl: "https://decasonic.com" });
+      .post("/api/thesis/draft").send({ vcUrl: "https://examplevc.com" });
     expect(res.status).toBe(200);
     expect(res.body.marketBeliefs).toBe("- a");
-    expect(mockGenerateThesis).toHaveBeenCalledWith("https://decasonic.com");
+    expect(mockGenerateThesis).toHaveBeenCalledWith("https://examplevc.com");
   });
 
   it("POST /api/thesis/draft 400 when vcUrl missing", async () => {

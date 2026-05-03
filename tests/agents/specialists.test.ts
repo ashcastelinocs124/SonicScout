@@ -1,4 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import path from "node:path";
+
+const FIXTURE = path.resolve("tests/fixtures/thesis.md");
 
 vi.mock("../../src/agents/llm.js", () => ({
   callLLM: vi.fn(async () => "competitor: io.net [verified]\n  ↳ Source: https://io.net"),
@@ -18,7 +21,7 @@ describe("specialist agents", () => {
   beforeEach(() => llmMod.callLLM.mockClear());
 
   it("runMarket calls LLM with market thesis slice and returns processed text", async () => {
-    const thesis = await loadThesis();
+    const thesis = await loadThesis(FIXTURE);
     const out = await runMarket({ ctx: emptyCtx, thesis });
     expect(out).toContain("io.net");
     expect(out).toContain("[verified]");
@@ -29,21 +32,21 @@ describe("specialist agents", () => {
   });
 
   it("runFounder uses founder thesis slice", async () => {
-    const thesis = await loadThesis();
+    const thesis = await loadThesis(FIXTURE);
     await runFounder({ ctx: emptyCtx, thesis });
     const args = llmMod.callLLM.mock.calls[0][0];
     expect(args.system).toContain("technical founders");
   });
 
   it("runProduct includes market+token thesis slices", async () => {
-    const thesis = await loadThesis();
+    const thesis = await loadThesis(FIXTURE);
     await runProduct({ ctx: emptyCtx, thesis });
     const args = llmMod.callLLM.mock.calls[0][0];
     expect(args.system).toContain("AI and blockchain are *necessary*");
   });
 
   it("runTokenomics uses token+anti-patterns slice", async () => {
-    const thesis = await loadThesis();
+    const thesis = await loadThesis(FIXTURE);
     await runTokenomics({ ctx: emptyCtx, thesis });
     const args = llmMod.callLLM.mock.calls[0][0];
     expect(args.system).toContain("Tokenomics analyst");
@@ -51,14 +54,14 @@ describe("specialist agents", () => {
   });
 
   it("runRisk uses anti-patterns slice and escalates HARD FLAGS", async () => {
-    const thesis = await loadThesis();
+    const thesis = await loadThesis(FIXTURE);
     await runRisk({ ctx: emptyCtx, thesis });
     const args = llmMod.callLLM.mock.calls[0][0];
     expect(args.system).toContain("HARD FLAGS");
   });
 
   it("includes competitors block in user prompt when present", async () => {
-    const thesis = await loadThesis();
+    const thesis = await loadThesis(FIXTURE);
     const ctx = {
       ...emptyCtx,
       competitors: [
@@ -76,7 +79,7 @@ describe("specialist agents", () => {
   });
 
   it("renders empty-state placeholder when competitors is empty", async () => {
-    const thesis = await loadThesis();
+    const thesis = await loadThesis(FIXTURE);
     await runMarket({ ctx: emptyCtx, thesis });
     const args = llmMod.callLLM.mock.calls[0][0];
     expect(args.user).toContain("### Competitors (researched via web search)");

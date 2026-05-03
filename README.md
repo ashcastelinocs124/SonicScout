@@ -1,6 +1,6 @@
 # DealSense
 
-Localhost web app — multi-agent venture analyst for **Decasonic** (Web3 x AI). Paste a startup URL, watch 5 AI specialist agents analyze it in parallel, get a thesis-aligned investment memo in ~90 seconds with a `Pass / Watch / Take Meeting / Invest` recommendation.
+Localhost web app — multi-agent venture analyst for any VC firm. Onboard your firm's investment thesis once from your website, then paste a startup URL and watch 5 AI specialist agents analyze it in parallel against your thesis. Get a memo in ~90 seconds with a `Pass / Watch / Take Meeting / Invest` recommendation.
 
 ## Architecture
 
@@ -29,7 +29,7 @@ URL submitted at /
         SQLite persistence
 ```
 
-Every factual claim is tagged `[verified]`, `[inferred]`, or `[speculative]`. A post-processor strips `[verified]` tags that lack a source line. Inline confidence pills surface the discipline visually. The Decasonic thesis lives in `config/thesis.md` and is sliced per-agent.
+Every factual claim is tagged `[verified]`, `[inferred]`, or `[speculative]`. A post-processor strips `[verified]` tags that lack a source line. Inline confidence pills surface the discipline visually. The active investment thesis lives in `config/thesis.md` (generated via the homepage onboarding flow or hand-edited) and is sliced per-agent.
 
 ## Run locally
 
@@ -94,7 +94,7 @@ All specialists share `src/agents/specialist.ts`. To add a seventh:
 ## Project layout
 
 ```
-config/thesis.md            # Decasonic thesis (hand-edited)
+config/thesis.md            # active investment thesis (auto-generated or hand-edited)
 src/
   agents/                   # 7 agents + shared helpers (llm, thesis, tiering)
   ingest/                   # PDF, web, LinkedIn extractors

@@ -29,9 +29,9 @@ describe("generateThesis", () => {
 
   it("returns four-section DraftThesis from picker + scrape + LLM", async () => {
     mockRequest.mockResolvedValueOnce({
-      body: { text: async () => "<html><body>Decasonic invests in agentic apps.</body></html>" },
+      body: { text: async () => "<html><body>ExampleVC invests in agentic apps.</body></html>" },
     });
-    mockPickThesisUrls.mockResolvedValueOnce(["https://decasonic.com/thesis"]);
+    mockPickThesisUrls.mockResolvedValueOnce(["https://examplevc.com/thesis"]);
     mockScrape.mockResolvedValueOnce({ markdown: "# Thesis\nWe back agentic apps." });
     mockCallLLM.mockResolvedValueOnce(JSON.stringify({
       marketBeliefs: "- Agentic apps win 2026-2028",
@@ -39,16 +39,16 @@ describe("generateThesis", () => {
       tokenStance: "- Token only when off-chain coordination fails",
       antiPatterns: "- AI + blockchain with no on-chain interaction",
     }));
-    const out = await generateThesis("https://decasonic.com");
+    const out = await generateThesis("https://examplevc.com");
     expect(out.marketBeliefs).toContain("Agentic apps");
     expect(out.founderFilters).toContain("Technical founders");
     expect(out.tokenStance).toContain("Token only");
     expect(out.antiPatterns).toContain("AI + blockchain");
-    expect(mockPickThesisUrls).toHaveBeenCalledWith("https://decasonic.com");
+    expect(mockPickThesisUrls).toHaveBeenCalledWith("https://examplevc.com");
     expect(mockScrape).toHaveBeenCalledTimes(1);
     const llmArgs = mockCallLLM.mock.calls[0]![0];
     expect(llmArgs.model).toBe("gpt-5");
-    expect(llmArgs.user).toContain("Decasonic invests");
+    expect(llmArgs.user).toContain("ExampleVC invests");
     expect(llmArgs.user).toContain("We back agentic apps");
   });
 

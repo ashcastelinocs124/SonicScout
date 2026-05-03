@@ -24,7 +24,7 @@ export async function runSpecialist(a: SpecialistArgs): Promise<string> {
   const thesisSlice = sliceThesis(a.thesis, a.agent);
   const system = [
     a.systemPreamble,
-    "## Decasonic thesis (relevant slice)",
+    "## Investment thesis (relevant slice)",
     thesisSlice,
     TIERING_RULES,
   ].join("\n\n");
