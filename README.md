@@ -1,4 +1,4 @@
-# DealSense
+# SonicScout
 
 Localhost web app — multi-agent venture analyst for any VC firm. Onboard your firm's investment thesis once from your website, then paste a startup URL and watch 5 AI specialist agents analyze it in parallel against your thesis. Get a memo in ~90 seconds with a `Pass / Watch / Take Meeting / Invest` recommendation.
 
